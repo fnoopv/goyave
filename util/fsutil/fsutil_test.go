@@ -240,6 +240,11 @@ func TestDetectContentType(t *testing.T) {
 			wantMIME: "text/javascript",
 		},
 		{
+			fileName: "image.svg",
+			buf:      []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
+			wantMIME: "image/svg+xml",
+		},
+		{
 			fileName: "eof",
 			buf:      []byte{},
 			wantErr:  true,
@@ -299,6 +304,12 @@ func TestDetectContentTypeByExtension(t *testing.T) {
 			want:        "text/css; charset=utf-8",
 			contentType: "text/plain; charset=utf-8",
 			fileName:    "test.css",
+		},
+		{
+			desc:        "utf8_svg",
+			want:        "image/svg+xml",
+			contentType: "text/xml; charset=utf-8",
+			fileName:    "image.svg",
 		},
 	}
 
@@ -419,6 +430,27 @@ func TestParseMultipartFiles(t *testing.T) {
 			{
 				Header:   form.File["file"][0],
 				MIMEType: "image/png",
+			},
+		}
+		assert.Equal(t, expected, files)
+		assert.NoError(t, err)
+	})
+
+	t.Run("svg", func(t *testing.T) {
+		svgPath := toAbsolutePath("util/fsutil/test.svg")
+		err := os.WriteFile(svgPath, []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"), 0644)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			deleteFile(svgPath)
+		})
+
+		form := createTestForm("util/fsutil/test.svg")
+		files, err := ParseMultipartFiles(form.File["file"])
+
+		expected := []File{
+			{
+				Header:   form.File["file"][0],
+				MIMEType: "image/svg+xml",
 			},
 		}
 		assert.Equal(t, expected, files)

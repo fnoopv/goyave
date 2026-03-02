@@ -116,7 +116,8 @@ func GetMIMEType(filesystem fs.FS, file string) (contentType string, size int64,
 
 // DetectContentType by sniffing the first 512 bytes of the given reader using `http.DetectContentType`.
 //
-// If the detected content type is `"application/octet-stream"` or `"text/plain"`, this function will attempt to
+// If the detected content type is `"application/octet-stream"`, `"text/plain"`, `"text/xml"` or
+// `"application/xml"`, this function will attempt to
 // find a more precise one using `fsutil.DetectContentTypeByExtension`.
 // The header parameter is retained (e.g: `charset=utf-8`).
 //
@@ -138,7 +139,7 @@ func DetectContentType(r io.Reader, fileName string) (string, error) {
 	}
 
 	contentType := http.DetectContentType(buffer)
-	if strings.HasPrefix(contentType, "application/octet-stream") || strings.HasPrefix(contentType, "text/plain") {
+	if strings.HasPrefix(contentType, "application/octet-stream") || strings.HasPrefix(contentType, "text/plain") || strings.HasPrefix(contentType, "text/xml") || strings.HasPrefix(contentType, "application/xml") {
 		contentType = detectContentTypeByExtension(fileName, contentType)
 	}
 	return contentType, nil
@@ -148,7 +149,7 @@ func detectContentTypeByExtension(fileName, contentType string) string {
 	for ext, t := range contentTypeByExtension {
 		if strings.HasSuffix(fileName, ext) {
 			tmp := t
-			if i := strings.Index(contentType, ";"); i != -1 {
+			if i := strings.Index(contentType, ";"); i != -1 && t != "image/svg+xml" {
 				tmp = t + contentType[i:] // Keep the "charset" arguments
 			}
 			contentType = tmp
