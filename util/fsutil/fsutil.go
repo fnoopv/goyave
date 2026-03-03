@@ -150,8 +150,8 @@ func DetectContentType(r io.Reader, fileName string) (string, error) {
 
 func hasSVGSignature(buffer []byte) bool {
 	content := strings.TrimSpace(strings.ToLower(string(buffer)))
-	if strings.HasPrefix(content, "\ufeff") {
-		content = strings.TrimSpace(strings.TrimPrefix(content, "\ufeff"))
+	if after, ok := strings.CutPrefix(content, "\ufeff"); ok {
+		content = strings.TrimSpace(after)
 	}
 
 	for {
