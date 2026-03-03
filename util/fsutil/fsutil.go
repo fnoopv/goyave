@@ -116,9 +116,10 @@ func GetMIMEType(filesystem fs.FS, file string) (contentType string, size int64,
 
 // DetectContentType by sniffing the first 512 bytes of the given reader using `http.DetectContentType`.
 //
-// If the detected content type is `"application/octet-stream"`, `"text/plain"`, `"text/xml"` or
-// `"application/xml"`, this function will attempt to
+// If the detected content type is `"application/octet-stream"` or `"text/plain"`, this function will attempt to
 // find a more precise one using `fsutil.DetectContentTypeByExtension`.
+// If the detected content type is `"text/xml"` or `"application/xml"`, this function promotes it to
+// `"image/svg+xml"` only if the content signature indicates SVG.
 // The header parameter is retained (e.g: `charset=utf-8`).
 //
 // If there is no error, this function always returns a valid MIME type. If it cannot determine a more specific one,
@@ -139,10 +140,41 @@ func DetectContentType(r io.Reader, fileName string) (string, error) {
 	}
 
 	contentType := http.DetectContentType(buffer)
-	if strings.HasPrefix(contentType, "application/octet-stream") || strings.HasPrefix(contentType, "text/plain") || strings.HasPrefix(contentType, "text/xml") || strings.HasPrefix(contentType, "application/xml") {
+	if strings.HasPrefix(contentType, "application/octet-stream") || strings.HasPrefix(contentType, "text/plain") {
 		contentType = detectContentTypeByExtension(fileName, contentType)
+	} else if (strings.HasPrefix(contentType, "text/xml") || strings.HasPrefix(contentType, "application/xml")) && hasSVGSignature(buffer) {
+		contentType = "image/svg+xml"
 	}
 	return contentType, nil
+}
+
+func hasSVGSignature(buffer []byte) bool {
+	content := strings.TrimSpace(strings.ToLower(string(buffer)))
+	if strings.HasPrefix(content, "\ufeff") {
+		content = strings.TrimSpace(strings.TrimPrefix(content, "\ufeff"))
+	}
+
+	for {
+		if strings.HasPrefix(content, "<?xml") {
+			end := strings.Index(content, "?>")
+			if end == -1 {
+				break
+			}
+			content = strings.TrimSpace(content[end+2:])
+			continue
+		}
+		if strings.HasPrefix(content, "<!--") {
+			end := strings.Index(content, "-->")
+			if end == -1 {
+				break
+			}
+			content = strings.TrimSpace(content[end+3:])
+			continue
+		}
+		break
+	}
+
+	return strings.HasPrefix(content, "<svg")
 }
 
 func detectContentTypeByExtension(fileName, contentType string) string {

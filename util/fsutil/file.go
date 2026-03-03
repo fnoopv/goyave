@@ -150,7 +150,7 @@ func ParseMultipartFiles(headers []*multipart.FileHeader) ([]File, error) {
 				return nil, errors.New(err)
 			}
 
-			mimeType, err = DetectContentType(f, fh.Filename)
+			mimeType, err = DetectContentType(f, "")
 			if err != nil {
 				_ = f.Close()
 				return nil, errors.New(err)

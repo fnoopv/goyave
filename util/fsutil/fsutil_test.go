@@ -245,6 +245,11 @@ func TestDetectContentType(t *testing.T) {
 			wantMIME: "image/svg+xml",
 		},
 		{
+			fileName: "script.js",
+			buf:      []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><root></root>"),
+			wantMIME: "text/xml; charset=utf-8",
+		},
+		{
 			fileName: "eof",
 			buf:      []byte{},
 			wantErr:  true,
@@ -316,6 +321,41 @@ func TestDetectContentTypeByExtension(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			assert.Equal(t, c.want, detectContentTypeByExtension(c.fileName, c.contentType))
+		})
+	}
+}
+
+func TestHasSVGSignature(t *testing.T) {
+	cases := []struct {
+		desc string
+		buf  []byte
+		want bool
+	}{
+		{
+			desc: "direct_svg",
+			buf:  []byte("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
+			want: true,
+		},
+		{
+			desc: "svg_with_prolog",
+			buf:  []byte("<?xml version=\"1.0\"?><svg></svg>"),
+			want: true,
+		},
+		{
+			desc: "svg_with_comment",
+			buf:  []byte("<?xml version=\"1.0\"?><!--comment--><svg></svg>"),
+			want: true,
+		},
+		{
+			desc: "xml_not_svg",
+			buf:  []byte("<?xml version=\"1.0\"?><root></root>"),
+			want: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			assert.Equal(t, c.want, hasSVGSignature(c.buf))
 		})
 	}
 }
@@ -455,6 +495,48 @@ func TestParseMultipartFiles(t *testing.T) {
 		}
 		assert.Equal(t, expected, files)
 		assert.NoError(t, err)
+	})
+
+	t.Run("xml_content_with_js_extension", func(t *testing.T) {
+		filePath := toAbsolutePath("util/fsutil/test.js")
+		err := os.WriteFile(filePath, []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><root></root>"), 0644)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			deleteFile(filePath)
+		})
+
+		form := createTestForm("util/fsutil/test.js")
+		files, err := ParseMultipartFiles(form.File["file"])
+
+		require.NoError(t, err)
+		require.Len(t, files, 1)
+		assert.Equal(t, "text/xml; charset=utf-8", files[0].MIMEType)
+	})
+
+	t.Run("declared_content_type_separate_from_detected_mime", func(t *testing.T) {
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+
+		headers := textproto.MIMEHeader{}
+		headers.Set("Content-Disposition", `form-data; name="file"; filename="custom.js"`)
+		headers.Set("Content-Type", "application/javascript")
+
+		part, err := writer.CreatePart(headers)
+		require.NoError(t, err)
+		_, err = part.Write([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><root></root>"))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		reader := multipart.NewReader(body, writer.Boundary())
+		form, err := reader.ReadForm(math.MaxInt64 - 1)
+		require.NoError(t, err)
+
+		files, err := ParseMultipartFiles(form.File["file"])
+		require.NoError(t, err)
+		require.Len(t, files, 1)
+
+		assert.Equal(t, "application/javascript", files[0].Header.Header.Get("Content-Type"))
+		assert.Equal(t, "text/xml; charset=utf-8", files[0].MIMEType)
 	})
 
 	t.Run("empty_file", func(t *testing.T) {
