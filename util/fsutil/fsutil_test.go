@@ -287,6 +287,12 @@ func TestDetectContentTypeByExtension(t *testing.T) {
 			fileName:    "test.xyz",
 		},
 		{
+			desc:        "empty_filename",
+			want:        "unknown",
+			contentType: "unknown",
+			fileName:    "",
+		},
+		{
 			desc:        "unknown_with_params",
 			want:        "unknown; charset=utf-8",
 			contentType: "unknown; charset=utf-8",
@@ -312,7 +318,7 @@ func TestDetectContentTypeByExtension(t *testing.T) {
 		},
 		{
 			desc:        "utf8_svg",
-			want:        "image/svg+xml",
+			want:        "image/svg+xml; charset=utf-8",
 			contentType: "text/xml; charset=utf-8",
 			fileName:    "image.svg",
 		},

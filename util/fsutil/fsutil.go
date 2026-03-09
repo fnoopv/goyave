@@ -1,6 +1,7 @@
 package fsutil
 
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"net/http"
@@ -149,28 +150,13 @@ func DetectContentType(r io.Reader, fileName string) (string, error) {
 }
 
 func hasSVGSignature(buffer []byte) bool {
-	start := -1
-	for i, b := range buffer {
-		if b == '<' {
-			start = i
-			break
-		}
-	}
+	start := bytes.IndexRune(buffer, '<')
 	if start == -1 {
 		return false
 	}
 
-	raw := buffer[start:]
-	normalized := make([]byte, 0, len(raw))
-	for _, b := range raw {
-		if b != 0 {
-			normalized = append(normalized, b)
-		}
-	}
-
-	content := strings.TrimSpace(strings.ToLower(string(normalized)))
-
-	// Skip possible comments
+	content := strings.TrimSpace(strings.ToLower(string(buffer[start:])))
+	// Skip optional XML tag and possible comments
 	for {
 		if strings.HasPrefix(content, "<?xml") {
 			end := strings.Index(content, "?>")
@@ -195,10 +181,13 @@ func hasSVGSignature(buffer []byte) bool {
 }
 
 func detectContentTypeByExtension(fileName, contentType string) string {
+	if fileName == "" {
+		return contentType
+	}
 	for ext, t := range contentTypeByExtension {
 		if strings.HasSuffix(fileName, ext) {
 			tmp := t
-			if i := strings.Index(contentType, ";"); i != -1 && t != "image/svg+xml" {
+			if i := strings.Index(contentType, ";"); i != -1 {
 				tmp = t + contentType[i:] // Keep the "charset" arguments
 			}
 			contentType = tmp
