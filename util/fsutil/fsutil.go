@@ -154,6 +154,7 @@ func hasSVGSignature(buffer []byte) bool {
 		content = strings.TrimSpace(after)
 	}
 
+	// Skip possible comments
 	for {
 		if strings.HasPrefix(content, "<?xml") {
 			end := strings.Index(content, "?>")
