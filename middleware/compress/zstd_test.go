@@ -31,7 +31,7 @@ func TestZstdEncoder(t *testing.T) {
 		// Invalid EncoderConcurrency
 		encoder := &Zstd{
 			Options: []zstd.EOption{
-				zstd.WithEncoderConcurrency(0),
+				zstd.WithEncoderConcurrency(-1),
 			},
 		}
 		encoder.NewWriter(bytes.NewBuffer([]byte{}))
