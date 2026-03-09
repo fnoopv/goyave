@@ -117,7 +117,7 @@ func GetMIMEType(filesystem fs.FS, file string) (contentType string, size int64,
 // DetectContentType by sniffing the first 512 bytes of the given reader using `http.DetectContentType`.
 //
 // If the detected content type is `"application/octet-stream"` or `"text/plain"`, this function will attempt to
-// find a more precise one using `fsutil.DetectContentTypeByExtension`.
+// find a more precise one using `fsutil.DetectContentTypeByExtension`, unless `fileName` is empty.
 // If the detected content type is `"text/xml"` or `"application/xml"`, this function promotes it to
 // `"image/svg+xml"` only if the content signature indicates SVG.
 // The header parameter is retained (e.g: `charset=utf-8`).
