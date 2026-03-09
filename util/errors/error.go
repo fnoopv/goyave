@@ -78,15 +78,20 @@ func Errorf(format string, args ...any) error {
 }
 
 func toErr(reason any) []error {
-	errs := []error{}
+	var errs []error
 	switch r := reason.(type) {
 	case error:
 		errs = append(errs, r)
 	case []error:
-		errs = append(errs, lo.Filter(r, func(e error, _ int) bool {
-			return e != nil
-		})...)
+		errs = make([]error, 0, len(r))
+		for _, e := range r {
+			if e == nil {
+				continue
+			}
+			errs = append(errs, e)
+		}
 	case []*Error:
+		errs = make([]error, 0, len(r))
 		for _, e := range r {
 			if e == nil {
 				continue
@@ -94,6 +99,7 @@ func toErr(reason any) []error {
 			errs = append(errs, e)
 		}
 	case []any:
+		errs = make([]error, 0, len(r))
 		for _, e := range r {
 			if e == nil {
 				continue
