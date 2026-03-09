@@ -675,3 +675,42 @@ func TestEmbedSub(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestAddExtensionType(t *testing.T) {
+	cases := []struct {
+		wantErr error
+		desc    string
+		ext     string
+		mime    string
+	}{
+		{
+			desc: "OK",
+			ext:  ".xyz",
+			mime: "text/custom",
+		},
+		{
+			desc:    "no_dot",
+			ext:     "xyz",
+			mime:    "text/custom",
+			wantErr: fmt.Errorf("fsutil: extension \"xyz\" missing leading dot"),
+		},
+		{
+			desc:    "no_dot",
+			ext:     ".abc",
+			mime:    "text/custom; charset=utf-8",
+			wantErr: fmt.Errorf("fsutil: MIME type \"text/custom; charset=utf-8\" contains a parameter"),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			err := AddExtensionType(c.ext, c.mime)
+			if c.wantErr == nil {
+				assert.Contains(t, contentTypeByExtension, c.ext)
+			} else {
+				assert.ErrorContains(t, err, c.wantErr.Error())
+				assert.NotContains(t, contentTypeByExtension, c.ext)
+			}
+		})
+	}
+}

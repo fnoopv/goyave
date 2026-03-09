@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,21 +14,35 @@ import (
 )
 
 var contentTypeByExtension = map[string]string{
-	".css":    "text/css",
+	".ai":     "application/postscript",
+	".apk":    "application/vnd.android.package-archive",
+	".apng":   "image/apng",
+	".avif":   "image/avif",
+	".bin":    "application/octet-stream",
 	".bmp":    "image/bmp",
-	".csv":    "text/csv",
+	".com":    "application/octet-stream",
 	".doc":    "application/msword",
+	".css":    "text/css",
+	".csv":    "text/csv",
 	".docx":   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".gz":     "application/gzip",
+	".ehtml":  "text/html",
+	".eml":    "message/rfc822",
+	".eps":    "application/postscript",
+	".exe":    "application/octet-stream",
+	".flac":   "audio/flac",
 	".gif":    "image/gif",
+	".gz":     "application/gzip",
 	".htm":    "text/html",
 	".html":   "text/html",
 	".ico":    "image/vnd.microsoft.icon",
+	".ics":    "text/calendar",
+	".jfif":   "image/jpeg",
 	".jpg":    "image/jpeg",
 	".jpeg":   "image/jpeg",
 	".js":     "text/javascript",
 	".jsonld": "application/ld+json",
 	".json":   "application/json",
+	".m4a":    "audio/mp4",
 	".mjs":    "text/javascript",
 	".mp3":    "audio/mpeg",
 	".mp4":    "video/mp4",
@@ -41,32 +56,68 @@ var contentTypeByExtension = map[string]string{
 	".otf":    "font/otf",
 	".png":    "image/png",
 	".pdf":    "application/pdf",
+	".pjp":    "image/jpeg",
+	".pjpeg":  "image/jpeg",
 	".ppt":    "application/vnd.ms-powerpoint",
 	".pptx":   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	".ps":     "application/postscript",
+	".rdf":    "application/rdf+xml",
+	".rtf":    "application/rtf",
 	".sh":     "application/x-sh",
+	".shtml":  "text/html",
 	".svg":    "image/svg+xml",
 	".tar":    "application/x-tar",
+	".text":   "text/plain",
 	".tif":    "image/tiff",
 	".tiff":   "image/tiff",
 	".ts":     "video/mp2t",
 	".ttf":    "font/ttf",
 	".txt":    "text/plain",
+	".vtt":    "text/vtt",
+	".wasm":   "application/wasm",
 	".wav":    "audio/wav",
 	".weba":   "audio/webm",
 	".webm":   "audio/webm",
 	".webp":   "image/webp",
 	".woff":   "font/woff",
 	".woff2":  "font/woff2",
+	".xbl":    "text/xml",
+	".xbm":    "image/x-xbitmap",
+	".xht":    "application/xhtml+xml",
 	".xhtml":  "application/xhtml+xml",
 	".xls":    "application/vnd.ms-excel",
 	".xlsx":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 	".xml":    "application/xml",
+	".xsl":    "text/xml",
 	".zip":    "application/zip",
 	".7z":     "application/x-7z-compressed",
 }
 
-// GetFileExtension returns the last part of a file name.
+// AddExtensionType set the MIME type associated with the given extension.
+// The extension should begin with a dot (e.g.: ".html").
+// The mimeType should not include the charset parameter nd be written in lowercase.
+//
+// Passing an extension that is already registered overrides the previous value.
+//
+// This function is not safe for concurrent use.
+func AddExtensionType(ext, mimeType string) error {
+	if !strings.HasPrefix(ext, ".") {
+		return errors.Errorf("fsutil: extension %q missing leading dot", ext)
+	}
+	_, params, err := mime.ParseMediaType(mimeType)
+	if err != nil {
+		return errors.New(err)
+	}
+	if len(params) > 0 {
+		return errors.Errorf("fsutil: MIME type %q contains a parameter", mimeType)
+	}
+	contentTypeByExtension[ext] = mimeType
+	return nil
+}
+
+// GetFileExtension returns the last part of a file name, without the leading dot.
 // If the file doesn't have an extension, returns an empty string.
+// For files with multiple extensions like `.tar.gz`, only `gz` is returned.
 func GetFileExtension(filename string) string {
 	index := strings.LastIndex(filename, ".")
 	if index == -1 {
