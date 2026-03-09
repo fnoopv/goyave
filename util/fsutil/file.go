@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"sync"
 
@@ -143,19 +142,16 @@ func (file *File) Save(fs WritableFS, path string, name string) (filename string
 func ParseMultipartFiles(headers []*multipart.FileHeader) ([]File, error) {
 	files := []File{}
 	for _, fh := range headers {
-		fileHeader := make([]byte, 512)
+		mimeType := "application/octet-stream"
 
 		if fh.Size != 0 {
 			f, err := fh.Open()
 			if err != nil {
 				return nil, errors.New(err)
 			}
-			if _, err := f.Read(fileHeader); err != nil {
-				_ = f.Close()
-				return nil, errors.New(err)
-			}
 
-			if _, err := f.Seek(0, 0); err != nil {
+			mimeType, err = DetectContentType(f, "")
+			if err != nil {
 				_ = f.Close()
 				return nil, errors.New(err)
 			}
@@ -166,7 +162,7 @@ func ParseMultipartFiles(headers []*multipart.FileHeader) ([]File, error) {
 
 		file := File{
 			Header:   fh,
-			MIMEType: http.DetectContentType(fileHeader),
+			MIMEType: mimeType,
 		}
 		files = append(files, file)
 	}
